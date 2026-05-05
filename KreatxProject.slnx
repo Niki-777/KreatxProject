@@ -1,0 +1,8 @@
+<Solution>
+  <Project Path="kreatxproject.client/kreatxproject.client.esproj">
+    <Build />
+    <Deploy />
+  </Project>
+  <Project Path="KreatxProject.Models/KreatxProject.Models.csproj" Id="70a899e6-b17b-46dc-8909-17c1af7d98c1" />
+  <Project Path="KreatxProject.Server/KreatxProject.Server.csproj" />
+</Solution>

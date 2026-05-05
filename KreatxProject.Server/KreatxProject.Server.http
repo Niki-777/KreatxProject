@@ -1,0 +1,6 @@
+@KreatxProject.Server_HostAddress = http://localhost:5256
+
+GET {{KreatxProject.Server_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
