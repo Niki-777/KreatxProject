@@ -16,14 +16,14 @@ namespace KreatxProject.Server.Controllers
             _context = context;
         }
 
-        // 1. MERR TË GJITHA PROJEKTET (GET)
+        // GET
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
         {
             return await _context.Projects.ToListAsync();
         }
 
-        // 2. SHTO NJË PROJEKT TË RI (POST)
+        // POST
         [HttpPost]
         public async Task<ActionResult<Project>> PostProject(Project project)
         {
