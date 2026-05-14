@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using KreatxProject.Server.Data;
 using KreatxProject.Models;
@@ -7,6 +8,7 @@ namespace KreatxProject.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
+    [Authorize] //vetëm perdoruesit e loguar mund të kene akses
     public class ProjectsController : ControllerBase
     {
         private readonly ApplicationDbContext _context;
@@ -16,20 +18,58 @@ namespace KreatxProject.Server.Controllers
             _context = context;
         }
 
-        // 1. MERR TË GJITHA PROJEKTET (GET)
+        // merr projektet (GET: api/Projects)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
         {
             return await _context.Projects.ToListAsync();
         }
 
-        // 2. SHTO NJË PROJEKT TË RI (POST)
+        [HttpGet("{id}")]
+        public async Task<ActionResult<Project>> GetProject(int id)
+        {
+            var project = await _context.Projects.FindAsync(id);
+
+            if (project == null)
+            {
+                return NotFound();
+            }
+
+            return project;
+        }
+
+        // Shto projekt te ri (POST: api/Projects)
+        // Vetem Administratori ka te drejtë të krijoje projekte
         [HttpPost]
+        [Authorize(Roles = "Administrator")]
         public async Task<ActionResult<Project>> PostProject(Project project)
         {
+            if (project == null)
+            {
+                return BadRequest("Të dhënat e projektit janë të pavlefshme.");
+            }
+
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
-            return Ok(project);
+
+            return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
+        }
+
+        // Fshij nje projekt (DELETE: api/Projects/5)
+        [HttpDelete("{id}")]
+        [Authorize(Roles = "Administrator")]
+        public async Task<IActionResult> DeleteProject(int id)
+        {
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null)
+            {
+                return NotFound();
+            }
+
+            _context.Projects.Remove(project);
+            await _context.SaveChangesAsync();
+
+            return NoContent();
         }
     }
 }

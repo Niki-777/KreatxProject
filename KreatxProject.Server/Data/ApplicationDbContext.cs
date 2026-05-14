@@ -1,9 +1,10 @@
-﻿using Microsoft.EntityFrameworkCore;
-using KreatxProject.Models; 
+﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using KreatxProject.Models;  
+using Microsoft.EntityFrameworkCore;
 
 namespace KreatxProject.Server.Data
 {
-    public class ApplicationDbContext : DbContext
+    public class ApplicationDbContext : IdentityDbContext<ApplicationUser>
     {
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
             : base(options)
