@@ -1,5 +1,6 @@
 using KreatxProject.Models;
 using KreatxProject.Server.Data;
+using KreatxProject.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -39,8 +40,11 @@ builder.Services.AddAuthentication(options =>
         IssuerSigningKey = new SymmetricSecurityKey(key)
     };
 });
-
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.ReferenceHandler = System.Text.Json.Serialization.ReferenceHandler.IgnoreCycles;
+    });
 
 // 4. SWAGGER MINIMAL (Pa OpenApi Security Requirements që shkaktojnë gabime)
 builder.Services.AddEndpointsApiExplorer();
@@ -49,7 +53,9 @@ builder.Services.AddSwaggerGen(); // Kjo e krijon Swagger-in pa pasur nevojë p�
 builder.Services.AddCors(options => {
     options.AddPolicy("LejoReact", p => p.AllowAnyOrigin().AllowAnyHeader().AllowAnyMethod());
 });
-
+// Regjistrimi i AuthService për Dependency Injection
+builder.Services.AddScoped<KreatxProject.Server.Services.IAuthService, KreatxProject.Server.Services.AuthService>();
+builder.Services.AddScoped<IProjectService, ProjectService>();
 var app = builder.Build();
 
 // 5. SEEDING (Kodi yt ekzistues)

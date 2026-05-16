@@ -1,75 +1,80 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using KreatxProject.Server.Data;
 using KreatxProject.Models;
+using KreatxProject.Services;
 
 namespace KreatxProject.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] //vetëm perdoruesit e loguar mund të kene akses
+    [Authorize] // Vetëm përdoruesit e loguar mund të kenë akses
     public class ProjectsController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
+        // RREGULLIMI: Injektojmë Service-in në vend të DbContext-it direkt
+        private readonly IProjectService _projectService;
 
-        public ProjectsController(ApplicationDbContext context)
+        public ProjectsController(IProjectService projectService)
         {
-            _context = context;
+            _projectService = projectService;
         }
 
-        // merr projektet (GET: api/Projects)
+        // Merr projektet (GET: api/projects)
         [HttpGet]
         public async Task<ActionResult<IEnumerable<Project>>> GetProjects()
         {
-            return await _context.Projects.ToListAsync();
+            var projects = await _projectService.GetAllProjectsAsync();
+            return Ok(projects);
         }
 
+        // Merr një projekt specifik (GET: api/projects/5)
         [HttpGet("{id}")]
         public async Task<ActionResult<Project>> GetProject(int id)
         {
-            var project = await _context.Projects.FindAsync(id);
+            var project = await _projectService.GetProjectByIdAsync(id);
 
             if (project == null)
             {
-                return NotFound();
+                return NotFound("Projekti nuk u gjet.");
             }
 
-            return project;
+            return Ok(project);
         }
 
-        // Shto projekt te ri (POST: api/Projects)
-        // Vetem Administratori ka te drejtë të krijoje projekte
+        // Shto projekt të ri (POST: api/projects)
+        // Vetëm Administratori ka të drejtë të krijojë projekte
         [HttpPost]
         [Authorize(Roles = "Administrator")]
-        public async Task<ActionResult<Project>> PostProject(Project project)
+        public async Task<ActionResult<Project>> PostProject([FromBody] Project project)
         {
             if (project == null)
             {
                 return BadRequest("Të dhënat e projektit janë të pavlefshme.");
             }
 
-            _context.Projects.Add(project);
-            await _context.SaveChangesAsync();
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(ModelState);
+            }
 
-            return CreatedAtAction(nameof(GetProject), new { id = project.Id }, project);
+            var createdProject = await _projectService.CreateProjectAsync(project);
+            return CreatedAtAction(nameof(GetProject), new { id = createdProject.Id }, createdProject);
         }
 
-        // Fshij nje projekt (DELETE: api/Projects/5)
+        // Fshij një projekt (DELETE: api/projects/5)
+        // Vetëm Administratori dhe mbrohet nëse ka taske të hapura brenda Service-it
         [HttpDelete("{id}")]
         [Authorize(Roles = "Administrator")]
         public async Task<IActionResult> DeleteProject(int id)
         {
-            var project = await _context.Projects.FindAsync(id);
-            if (project == null)
+            var result = await _projectService.DeleteProjectAsync(id);
+
+            if (!result.Success)
             {
-                return NotFound();
+                // Nëse ka taske të hapura, Service kthen false dhe mesazhin e bllokimit
+                return BadRequest(new { message = result.Message });
             }
 
-            _context.Projects.Remove(project);
-            await _context.SaveChangesAsync();
-
-            return NoContent();
+            return Ok(new { message = result.Message });
         }
     }
 }

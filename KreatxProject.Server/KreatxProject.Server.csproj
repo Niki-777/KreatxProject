@@ -32,8 +32,4 @@
     <ProjectReference Include="..\KreatxProject.Models\KreatxProject.Models.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Models\" />
-  </ItemGroup>
-
 </Project>
