@@ -2,9 +2,12 @@
 
 namespace KreatxProject.Models
 {
-    // Kjo klase trashegon (inherits) nga IdentityUser
     public class ApplicationUser : IdentityUser
     {
-        public string? ProfilePicture { get; set; }
+        // Emri i plote i perdoruesit
+        public string FullName { get; set; } = string.Empty;
+
+        // Fusha e re per foton e profilit
+        public string? ProfilePicturePath { get; set; }
     }
 }

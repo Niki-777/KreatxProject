@@ -1,63 +1,69 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
-using KreatxProject.Server.Data;
+using System.Security.Claims;
 using KreatxProject.Models;
+using KreatxProject.Server.Services;
 
 namespace KreatxProject.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Të dy rolet kanë qasje të përgjithshme
+    [Authorize]
     public class TasksController : ControllerBase
     {
-        private readonly ApplicationDbContext _context;
-
-        public TasksController(ApplicationDbContext context)
+        private readonly ITaskService _taskService;
+        
+        public TasksController(ITaskService taskService)
         {
-            _context = context;
+            _taskService = taskService;
         }
 
         // 1. Merr të gjitha tasket për një projekt specifik (GET: api/tasks/project/5)
         [HttpGet("project/{projectId}")]
-        public async Task<ActionResult<IEnumerable<ProjectTask>>> GetTasksByProject(int projectId)
+        public async Task<IActionResult> GetTasksByProject(int projectId)
         {
-            var tasks = await _context.ProjectTasks
-                .Where(t => t.ProjectId == projectId)
-                .ToListAsync();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+            var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
 
+            var tasks = await _taskService.GetTasksByProjectAsync(projectId, userId, role);
             return Ok(tasks);
         }
 
         // 2. Shto një Task të ri (POST: api/tasks)
         [HttpPost]
-        public async Task<ActionResult<ProjectTask>> PostTask([FromBody] ProjectTask task)
+        public async Task<IActionResult> PostTask([FromBody] ProjectTask task)
         {
-            if (task == null) return BadRequest("Të dhënat janë të pavlefshme.");
+            if (!ModelState.IsValid) return BadRequest(ModelState);
 
-            _context.ProjectTasks.Add(task);
-            await _context.SaveChangesAsync();
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+            var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
 
-            return CreatedAtAction(nameof(GetTasksByProject), new { projectId = task.ProjectId }, task);
+            var createdTask = await _taskService.CreateTaskAsync(task, userId, role);
+
+            return CreatedAtAction(nameof(GetTasksByProject), new { projectId = createdTask.ProjectId }, createdTask);
         }
 
-        // 3. Përditëso statusin e Taskut - Psh. shëno si i përfunduar (PUT: api/tasks/5)
+        // 3. Përditëso statusin dhe fushat e Taskut (PUT: api/tasks/5)
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateTaskStatus(int id, [FromBody] ProjectTask updatedTask)
         {
             if (id != updatedTask.Id) return BadRequest("ID nuk përputhet.");
 
-            var task = await _context.ProjectTasks.FindAsync(id);
-            if (task == null) return NotFound("Tasku nuk u gjet.");
+            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier) ?? "";
+            var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
 
-            // Përditësojmë fushat kryesore
-            task.IsCompleted = updatedTask.IsCompleted;
-            task.Title = updatedTask.Title;
-            task.Description = updatedTask.Description;
-            task.AssignedToUserId = updatedTask.AssignedToUserId;
+            try
+            {
+                var result = await _taskService.UpdateTaskAsync(id, updatedTask, userId, role);
+                if (!result) return NotFound("Tasku nu u gjet.");
 
-            await _context.SaveChangesAsync();
-            return NoContent();
+                return NoContent(); // Kthen 204 ekzaktësisht si kodi yt i vjetër
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                // Nëse punonjësi tenton të ndryshojë një task që s'është i tij, kthehet 403 Forbidden
+                return StatusCode(403, ex.Message);
+            }
         }
 
         // 4. Fshij një task (DELETE: api/tasks/5) - Vetëm Administratori
@@ -65,13 +71,19 @@ namespace KreatxProject.Server.Controllers
         [Authorize(Roles = "Administrator")]
         public async Task<IActionResult> DeleteTask(int id)
         {
-            var task = await _context.ProjectTasks.FindAsync(id);
-            if (task == null) return NotFound();
+            var role = User.FindFirstValue(ClaimTypes.Role) ?? "";
 
-            _context.ProjectTasks.Remove(task);
-            await _context.SaveChangesAsync();
+            try
+            {
+                var result = await _taskService.DeleteTaskAsync(id, role);
+                if (!result) return NotFound();
 
-            return NoContent();
+                return NoContent();
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return StatusCode(403, ex.Message);
+            }
         }
     }
 }

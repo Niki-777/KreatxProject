@@ -7,10 +7,9 @@ namespace KreatxProject.Server.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [Authorize] // Vetëm përdoruesit e loguar mund të kenë akses
+    [Authorize] // Vetem perdoruesit e loguar mund te kene akses
     public class ProjectsController : ControllerBase
     {
-        // RREGULLIMI: Injektojmë Service-in në vend të DbContext-it direkt
         private readonly IProjectService _projectService;
 
         public ProjectsController(IProjectService projectService)
@@ -26,7 +25,7 @@ namespace KreatxProject.Server.Controllers
             return Ok(projects);
         }
 
-        // Merr një projekt specifik (GET: api/projects/5)
+        // Merr nje projekt specifik (GET: api/projects/5)
         [HttpGet("{id}")]
         public async Task<ActionResult<Project>> GetProject(int id)
         {
@@ -40,15 +39,15 @@ namespace KreatxProject.Server.Controllers
             return Ok(project);
         }
 
-        // Shto projekt të ri (POST: api/projects)
-        // Vetëm Administratori ka të drejtë të krijojë projekte
+        // Shto projekt te ri (POST: api/projects)
+        // Vetem Administratori ka te drejte te krijoje projekte
         [HttpPost]
         [Authorize(Roles = "Administrator")]
         public async Task<ActionResult<Project>> PostProject([FromBody] Project project)
         {
             if (project == null)
             {
-                return BadRequest("Të dhënat e projektit janë të pavlefshme.");
+                return BadRequest("Te dhenat e projektit jane te pavlefshme.");
             }
 
             if (!ModelState.IsValid)
@@ -60,21 +59,53 @@ namespace KreatxProject.Server.Controllers
             return CreatedAtAction(nameof(GetProject), new { id = createdProject.Id }, createdProject);
         }
 
-        // Fshij një projekt (DELETE: api/projects/5)
-        // Vetëm Administratori dhe mbrohet nëse ka taske të hapura brenda Service-it
+        // Fshij nje projekt (DELETE: api/projects/5)
+        // Vetem Administratori dhe mbrohet nese ka taske te hapura brenda Service-it
         [HttpDelete("{id}")]
-        [Authorize(Roles = "Administrator")]
         public async Task<IActionResult> DeleteProject(int id)
         {
-            var result = await _projectService.DeleteProjectAsync(id);
+            // Shërbimi kthen true ose false, ose hedh Exception nëse ka taske të hapura
+            var deleted = await _projectService.DeleteProjectAsync(id);
 
-            if (!result.Success)
+            if (!deleted)
             {
-                // Nëse ka taske të hapura, Service kthen false dhe mesazhin e bllokimit
-                return BadRequest(new { message = result.Message });
+                return NotFound(new { message = "Project not found." });
             }
 
-            return Ok(new { message = result.Message });
+            return Ok(new { message = "Project deleted successfully." });
+        }
+
+        // Shto punonjes ne projekt (POST: api/projects/{projectId}/employees)
+        [HttpPost("{projectId}/employees")]
+        [Authorize(Roles = "Administrator")]
+        public async Task<IActionResult> AddEmployeeToProject(int projectId, [FromBody] string employeeId)
+        {
+            if (string.IsNullOrEmpty(employeeId))
+            {
+                return BadRequest(new { message = "Id e punonjesit eshte e detyrueshme." });
+            }
+
+            var result = await _projectService.AddEmployeeToProjectAsync(projectId, employeeId);
+            if (!result)
+            {
+                return BadRequest(new { message = "Nuk u mundesua shtimi i punonjesit ne projekt." });
+            }
+
+            return Ok(new { message = "Punonjesi u shtua me sukses ne projekt." });
+        }
+
+        // Hiq punonjes nga projekti (DELETE: api/projects/{projectId}/employees/{employeeId})
+        [HttpDelete("{projectId}/employees/{employeeId}")]
+        [Authorize(Roles = "Administrator")]
+        public async Task<IActionResult> RemoveEmployeeFromProject(int projectId, string employeeId)
+        {
+            var result = await _projectService.RemoveEmployeeFromProjectAsync(projectId, employeeId);
+            if (!result)
+            {
+                return NotFound(new { message = "Lidhja midis projektit dhe punonjesit nuk u gjet." });
+            }
+
+            return Ok(new { message = "Punonjesi u hoq me sukses nga projekti." });
         }
     }
 }

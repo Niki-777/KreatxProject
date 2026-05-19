@@ -1,23 +1,21 @@
 import { useEffect, useState } from 'react';
 import Login from './components/Login';
+import UserProfile from './components/UserProfile';
 
 function App() {
     const [isLoggedIn, setIsLoggedIn] = useState(!!localStorage.getItem('token'));
     const [projects, setProjects] = useState([]);
     const [users, setUsers] = useState([]);
-    const [tasks, setTasks] = useState([]); // Ruajmë tasket e projektit të zgjedhur
-    const [selectedProject, setSelectedProject] = useState(null); // Projekti që klikohet
+    const [tasks, setTasks] = useState([]);
+    const [selectedProject, setSelectedProject] = useState(null);
 
-    // Fushat për projektin
     const [projectName, setProjectName] = useState('');
     const [projectDesc, setProjectDesc] = useState('');
 
-    // Fushat për përdoruesin
     const [userEmail, setUserEmail] = useState('');
     const [userPassword, setUserPassword] = useState('');
     const [userRole, setUserRole] = useState('Employee');
 
-    // Fushat për taskun e ri
     const [taskTitle, setTaskTitle] = useState('');
     const [taskDesc, setTaskDesc] = useState('');
     const [assignedUser, setAssignedUser] = useState('');
@@ -39,7 +37,7 @@ function App() {
         }
     }, [isLoggedIn]);
 
-    // 2. Merr përdoruesit (Na duhen edhe për dropdown-in e caktimit të taskeve)
+    // 2. Merr përdoruesit
     useEffect(() => {
         if (isLoggedIn && isAdmin) {
             const token = localStorage.getItem('token');
@@ -112,7 +110,6 @@ function App() {
         } catch (error) { console.error(error); }
     };
 
-    // 4. Krijimi i një Tasku të Ri (Versioni i Sigurt)
     const handleCreateTask = async (e) => {
         e.preventDefault();
         const token = localStorage.getItem('token');
@@ -155,7 +152,6 @@ function App() {
         }
     };
 
-    // 5. Ndryshimi i Statusit të Taskut (Complete / Incomplete)
     const handleToggleTaskComplete = async (task) => {
         const token = localStorage.getItem('token');
         const taskId = task.id || task.Id;
@@ -200,13 +196,28 @@ function App() {
                 </div>
             </div>
 
-            {/* Navigimi për Admin */}
-            {isAdmin && (
-                <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
-                    <button onClick={() => { setCurrentTab('projects'); setSelectedProject(null); }} style={{ padding: '10px 20px', backgroundColor: currentTab === 'projects' ? '#007bff' : '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Menaxho Projektet</button>
-                    <button onClick={() => setCurrentTab('users')} style={{ padding: '10px 20px', backgroundColor: currentTab === 'users' ? '#007bff' : '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Menaxho Përdoruesit</button>
-                </div>
-            )}
+            {/* Navigimi i Përgjithshëm (Shtohet butoni i Profilit për të gjithë) */}
+            <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+                <button
+                    onClick={() => { setCurrentTab('projects'); setSelectedProject(null); }}
+                    style={{ padding: '10px 20px', backgroundColor: currentTab === 'projects' ? '#007bff' : '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    Projektet
+                </button>
+
+                {isAdmin && (
+                    <button
+                        onClick={() => setCurrentTab('users')}
+                        style={{ padding: '10px 20px', backgroundColor: currentTab === 'users' ? '#007bff' : '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                        Menaxho Përdoruesit
+                    </button>
+                )}
+
+                <button
+                    onClick={() => setCurrentTab('profile')}
+                    style={{ padding: '10px 20px', backgroundColor: currentTab === 'profile' ? '#28a745' : '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>
+                    Profili Im
+                </button>
+            </div>
 
             {/* TABI PROJEKTET */}
             {currentTab === 'projects' && (
@@ -223,7 +234,6 @@ function App() {
                     )}
 
                     {!selectedProject ? (
-                        /* TABELA 1: LISTA E PROJEKTEVE KRYESORE */
                         <div>
                             <h3 style={{ color: '#333', marginBottom: '5px' }}>Projektet Aktuale</h3>
                             <p style={{ color: '#666', fontSize: '14px', marginBottom: '15px' }}>* Kliko mbi rreshtin e një projekti për të parë dhe menaxhuar tasket e tij.</p>
@@ -247,12 +257,10 @@ function App() {
                             </table>
                         </div>
                     ) : (
-                        /* TABELA 2: LISTA E TASKEVE TË PROJEKTIT TË ZGJEDHUR */
                         <div>
                             <button onClick={() => setSelectedProject(null)} style={{ marginBottom: '20px', padding: '8px 15px', backgroundColor: '#6c757d', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer' }}>← Kthehu te Projektet</button>
                             <h3 style={{ marginBottom: '5px' }}>Tasket për projektin: <span style={{ color: '#007bff' }}>{selectedProject.name || selectedProject.Name}</span></h3>
 
-                            {/* Forma e shtimit të Taskut (Vetëm për Admin) */}
                             {isAdmin && (
                                 <div style={{ backgroundColor: '#f8f9fa', padding: '15px', borderRadius: '8px', marginBottom: '20px', border: '1px solid #ddd' }}>
                                     <h4>Shto Task të Ri</h4>
@@ -273,7 +281,6 @@ function App() {
                                 </div>
                             )}
 
-                            {/* Tabela e Taskeve */}
                             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
                                 <thead>
                                     <tr style={{ backgroundColor: '#f2f2f2' }}>
@@ -296,7 +303,6 @@ function App() {
                                                     </td>
                                                     <td style={{ padding: '10px', border: '1px solid #ddd', textDecoration: isComp ? 'line-through' : 'none' }}>{t.title || t.Title}</td>
                                                     <td style={{ padding: '10px', border: '1px solid #ddd', color: '#555' }}>{t.description || t.Description}</td>
-
                                                     <td style={{ padding: '10px', border: '1px solid #ddd' }}>
                                                         {!isAdmin ? (
                                                             <button onClick={() => handleToggleTaskComplete(t)} style={{ padding: '5px 10px', backgroundColor: isComp ? '#6c757d' : '#007bff', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
@@ -360,6 +366,9 @@ function App() {
                     </table>
                 </div>
             )}
+
+            {/* TABI I RI: PROFILI (E shohin te gjithe) */}
+            {currentTab === 'profile' && <UserProfile />}
         </div>
     );
 }

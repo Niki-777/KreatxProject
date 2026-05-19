@@ -1,5 +1,6 @@
 using KreatxProject.Models;
 using KreatxProject.Server.Data;
+using KreatxProject.Server.Services;
 using KreatxProject.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
@@ -56,6 +57,8 @@ builder.Services.AddCors(options => {
 // Regjistrimi i AuthService për Dependency Injection
 builder.Services.AddScoped<KreatxProject.Server.Services.IAuthService, KreatxProject.Server.Services.AuthService>();
 builder.Services.AddScoped<IProjectService, ProjectService>();
+builder.Services.AddScoped<ITaskService, TaskService>();
+builder.Services.AddScoped<IUserService, UserService>();
 var app = builder.Build();
 
 // 5. SEEDING (Kodi yt ekzistues)
@@ -101,6 +104,7 @@ app.UseStaticFiles();
 app.UseCors("LejoReact");
 app.UseAuthentication();
 app.UseAuthorization();
+app.UseStaticFiles(); // Lejon aksesimin e folderit wwwroot nga jashte
 app.MapControllers();
 app.MapFallbackToFile("/index.html");
 

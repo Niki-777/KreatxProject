@@ -1,10 +1,6 @@
 ﻿using KreatxProject.Models;
 using KreatxProject.Server.Data;
 using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 
 namespace KreatxProject.Services
 {
@@ -12,25 +8,25 @@ namespace KreatxProject.Services
     {
         private readonly ApplicationDbContext _context;
 
-        public ProjectService(ApplicationDbContext _context)
+        // Rregulluar emertimi i parametrit ne konstruktor
+        public ProjectService(ApplicationDbContext context)
         {
-            this._context = _context;
+            _context = context;
         }
 
         public async Task<IEnumerable<Project>> GetAllProjectsAsync()
         {
-            // Marrim projektet bashkë me tasket e tyre përkatëse
-            return await _context.Projects.Include(p => p.Tasks).ToListAsync();
+            return await _context.Projects.ToListAsync();
         }
 
         public async Task<Project?> GetProjectByIdAsync(int id)
         {
-            return await _context.Projects.Include(p => p.Tasks).FirstOrDefaultAsync(p => p.Id == id);
+            return await _context.Projects.FindAsync(id);
         }
 
         public async Task<Project> CreateProjectAsync(Project project)
         {
-            project.StartDate = DateTime.Now;
+            project.StartDate = DateTime.Now; // Mbajme vleren tende te dates
             _context.Projects.Add(project);
             await _context.SaveChangesAsync();
             return project;
@@ -51,24 +47,57 @@ namespace KreatxProject.Services
             }
         }
 
-        public async Task<(bool Success, string Message)> DeleteProjectAsync(int id)
+        // Kthyer ne Task<bool> per te perputhur saktesisht me interface-in tend
+        public async Task<bool> DeleteProjectAsync(int id)
         {
-            var project = await _context.Projects.Include(p => p.Tasks).FirstOrDefaultAsync(p => p.Id == id);
-            if (project == null)
-            {
-                return (false, "Projekti nuk u gjet.");
-            }
+            var project = await _context.Projects.FindAsync(id);
+            if (project == null) return false;
 
-            // KËRKESA E DETYRËS: Administratori nuk mund të fshijë projekte që kanë taske të hapura (IsCompleted == false)
-            bool hasOpenTasks = project.Tasks.Any(t => !t.IsCompleted);
+            // Kontrollojme nese ka taske qe nuk jane perfunduar (IsCompleted == false)
+            var hasOpenTasks = await _context.ProjectTasks
+                .AnyAsync(t => t.ProjectId == id && !t.IsCompleted);
+
             if (hasOpenTasks)
             {
-                return (false, "Nuk mund ta fshini këtë projekt sepse ka ende detyra (tasks) të papërfunduara!");
+                // Hedhim exception sipas kerkeses se profesorit qe te kapet nga middleware
+                throw new InvalidOperationException("Nuk mund te fshini nje projekt qe ka ende taske te hapura.");
             }
 
             _context.Projects.Remove(project);
             await _context.SaveChangesAsync();
-            return (true, "Projekti u fshi me sukses.");
+            return true;
+        }
+
+        // Shtimi i punonjesit ne projekt (Many-to-Many)
+        public async Task<bool> AddEmployeeToProjectAsync(int projectId, string employeeId)
+        {
+            var exists = await _context.ProjectEmployees
+                .AnyAsync(pe => pe.ProjectId == projectId && pe.EmployeeId == employeeId);
+
+            if (exists) return true;
+
+            var relation = new ProjectEmployee
+            {
+                ProjectId = projectId,
+                EmployeeId = employeeId
+            };
+
+            _context.ProjectEmployees.Add(relation);
+            await _context.SaveChangesAsync();
+            return true;
+        }
+
+        // Heqja e punonjesit nga projekti
+        public async Task<bool> RemoveEmployeeFromProjectAsync(int projectId, string employeeId)
+        {
+            var relation = await _context.ProjectEmployees
+                .FirstOrDefaultAsync(pe => pe.ProjectId == projectId && pe.EmployeeId == employeeId);
+
+            if (relation == null) return false;
+
+            _context.ProjectEmployees.Remove(relation);
+            await _context.SaveChangesAsync();
+            return true;
         }
     }
 }
